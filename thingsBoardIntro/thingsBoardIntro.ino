@@ -13,19 +13,17 @@
 //***************MODIFICAR PARA SU PROYECTO *********************
 // includes de bibliotecas sensores, poner las que usen en este caso un DHT11 y un Servo
 #include "DHT.h"
-#include <Servo.h>
-
 
 //***************MODIFICAR PARA SU PROYECTO *********************
 //  configuración datos wifi 
-// decomentar el define y poner los valores de su red y de su dispositivo
-#define WIFI_AP "SSID RED"
-#define WIFI_PASSWORD "PASSWORD RED"
-
+// descomentar el define y poner los valores de su red y de su dispositivo
+//#define WIFI_AP "SSID RED"
+//#define WIFI_PASSWORD "PASSWORD RED"
 
 //  configuración datos thingsboard
-#define NODE_NAME "NOMBRE DISPOSITIVO"   //nombre que le pusieron al dispositivo cuando lo crearon
-#define NODE_TOKEN "TOKEN DISPOSITIVO"   //Token que genera Thingboard para dispositivo cuando lo crearon
+//#define NODE_NAME "NOMBRE DISPOSITIVO"   //nombre que le pusieron al dispositivo cuando lo crearon
+//#define NODE_TOKEN "TOKEN DISPOSITIVO"   //Token que genera Thingboard para dispositivo cuando lo crearon
+
 
 
 //***************NO MODIFICAR *********************
@@ -58,10 +56,7 @@ const int elapsedTime = 1000; // tiempo transcurrido entre envios al servidor
 // Declarar e Inicializar sensores.
 DHT dht(DHTPIN, DHTTYPE);
 
-Servo doorServo;  // create servo object to control a servo 
-const int servoDoorClosedPosition = 0;
-const int servoDoorOpenedPosition = 90;
-const int servoPin = D4;
+
 
 //
 //************************* Funciones Setup y loop *********************
@@ -81,9 +76,6 @@ void setup()
 
 
   // ******** AGREGAR INICIALZICION DE SENSORES PARA SU PROYECTO *********
-  doorServo.attach(servoPin); 
-
-  initDoor();  // cierra la puerta
   
   dht.begin(); //inicaliza el DHT
   delay(10);
@@ -169,11 +161,12 @@ void getAndSendData()
  *  El formato del string que llega es "v1/devices/me/rpc/request/{id}/Operación. donde operación es el método get declarado en el  
  *  widget que usan para mandar el comando e {id} es el indetificador del mensaje generado por el servidor
  */
+
+ 
 void on_message(const char* topic, byte* payload, unsigned int length) 
 {
-  // Mostrar datos recibidos del servidor
+    // Mostrar datos recibidos del servidor
   Serial.println("On message");
-
   char json[length + 1];
   strncpy (json, (char*)payload, length);
   json[length] = '\0';
@@ -199,131 +192,15 @@ void on_message(const char* topic, byte* payload, unsigned int length)
   Serial.print("Nombre metodo:");
   Serial.println(methodName);
 
-  /* Responder segun el método 
-   *  En este caso 
-   *     el widget switch envia el comando openDoor con un paramtro true o false
-   *     el widget gauge envian un comando rotateMotorValue con un int de los grados a rotar el motos (servo)
-   *     Luego se responde con un mensaje para que actualice la Card correspondiente a la Door (doorState)
-   */
-  if (methodName.equals("openDoor")) {
-    bool action = data["params"];
-    String doorStatus = openOrCloseDoor(action);
-
-    // responder al servidor con el estado de la puerta
-    updateDoorStatus(doorStatus, topic);
-  }
-  else if (methodName.equals("rotateMotorValue")) {
-    String gradosTemp = (data["params"]);
-    int grados = gradosTemp.toInt();
-
-    // se llama al motor para que gire los grados del parametro
-    moveMotor(grados);
-    updateMotorStatus(grados, topic);
-  }
- 
 }
 
+
+ 
 //***************MODIFICAR PARA SU PROYECTO PARA PROCESAR UN COMANDO *********************
 
-/*
- * función que "abre" la puerta (simulada).
- * En su proyecto habria que programar lo que hace el dispositivo al recibir el comando
- */
-String openOrCloseDoor(bool action)
-{
-  String returnValue = "NO ANDA";
-  if (action == true) {
-    doorServo.write(servoDoorOpenedPosition);
-    Serial.println("Abriendo puerta");
-    returnValue = "ABIERTA";
-  }
-   else {
-    doorServo.write(servoDoorClosedPosition);
-    Serial.println("Cerrando puerta");
-    returnValue = "CERRADA";
-   }
-   return returnValue;
-}
 
 
-/*
- * 
- *Reply al servidor del estado de la puerta. se modifica el atributo compartido doorState y se refleja en la card asociada al misimo que despliega la variable doorStatus
- *Las respuestas al servidor son OPCIONALES.   El formato del string que se envia es "v1/devices/me/rpc/response/{id}/Respuesta. donde Respuesta es el método get declarado en el  
- *widget que usan para mandar el comando e {id} es el indetificador del mensaje generado por el servidor. Notar que en el string del nomber del tópico 
- *se sustituye la palabra Resquest por Response, esto se hace para reusar el nombre del topico que solo difiere en si es request o response
- */
-void updateDoorStatus(String doorStatus, const char* topic)
-{
-    // cambiar el topico de RPC a RESPONSE
-   
-    String responseTopic = String(topic);
-    responseTopic.replace("request", "response");  //Notar que se cambio la palabra request por response en la cadena del topico
-    Serial.println(responseTopic);
 
-    StaticJsonBuffer<200> jsonBuffer;
-    JsonObject& root = jsonBuffer.createObject();
-    root["doorState"] = doorStatus;
-
-    // Prepare a JSON payload string dicendo el estado de la puerta, Notar que la tarjeta del dashboar tiene este atributo definido
-    //String payload = "{";
-    //payload += "\"doorState\":"; payload += "\""  ; payload += doorStatus; payload += "\""; payload += "}";
-
-
-    // Send payload
-    char attributes[100];
-    root.printTo(attributes);
-  //  payload.toCharArray( attributes, 100 );
-    Serial.print("respuesta puerta: ");
-    Serial.println(attributes);
-
-    // se envia la repsuesta la cual se despliegan en las tarjetas creadas para el atrubito 
-    client.publish(attributesTopic, attributes);
-}
-
-// Función para inicializar con la puerta cerrada
-void initDoor()
-{
-  doorServo.write(servoDoorClosedPosition);
-}
-
-//***************MODIFICAR PARA SU PROYECTO PARA PROCESAR UN COMANDO*********************
-
-/*
- * 
- *Reply al servidor. se modifica el atributo compartido gradosMotor y se refleja en la card asociada al misimo
- *
- */
-void updateMotorStatus(int grados, const char* topic)
-{
-    // cambiar el topico de RPC a RESPONSE
-    String responseTopic = String(topic);
-    responseTopic.replace("request", "response");  //Notar que se cambio la palabra request por response en la cadena del topico
-    Serial.println(responseTopic);
-    
-     // Prepare a JSON payload string dicendo el estado de la puerta, Notar que la tarjeta del dashboar tiene este atributo definido
-     String payload = "{";
-     payload += "\"gradosMotor\":";   ; payload += grados; ; payload += "}";
-
-    // Send payload
-    char attributes[100];
-    payload.toCharArray( attributes, 100 );
-    Serial.print("respuesta motor: ");
-    Serial.println(attributes);
-
-    // se envia la repsuesta la cual se despliegan en las tarjetas creadas para el atrubito 
-    client.publish(attributesTopic, attributes);
-}
-
-/* El proceso para otros comandos es el mismo que en el caso de openDoor
- * función que gira un servo X grados (simulada)
- */
-void moveMotor(int grados)
-{
-  Serial.print("moviendo motor");
-  Serial.println(grados);
-  doorServo.write(grados);
-}
 
 
 
