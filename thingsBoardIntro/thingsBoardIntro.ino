@@ -7,8 +7,6 @@
 // includes de bibliotecas para comunicación
 #include <PubSubClient.h>
 #include <ESP8266WiFi.h>
-#include <ArduinoJson.h>
-
 
 //***************MODIFICAR PARA SU PROYECTO *********************
 // includes de bibliotecas sensores, poner las que usen en este caso un DHT11 y un Servo
@@ -20,10 +18,10 @@
 //#define WIFI_AP "SSID RED"
 //#define WIFI_PASSWORD "PASSWORD RED"
 
+
 //  configuración datos thingsboard
 //#define NODE_NAME "NOMBRE DISPOSITIVO"   //nombre que le pusieron al dispositivo cuando lo crearon
 //#define NODE_TOKEN "TOKEN DISPOSITIVO"   //Token que genera Thingboard para dispositivo cuando lo crearon
-
 
 
 //***************NO MODIFICAR *********************
@@ -36,8 +34,6 @@ char thingsboardServer[] = "demo.thingsboard.io";
  */
 char telemetryTopic[] = "v1/devices/me/telemetry";
 char requestTopic[] = "v1/devices/me/rpc/request/+";  //RPC - El Servidor usa este topico para enviar rquests, cliente response
-char attributesTopic[] = "v1/devices/me/attributes";  // Permite recibir o enviar mensajes dependindo de atributos compartidos
-
 
 // declarar cliente Wifi y PubSus
 WiFiClient wifiClient;
@@ -131,10 +127,9 @@ void getAndSendData()
   Serial.print( humidity );
   Serial.print( "]   -> " );
 
-
-  // Preparar el payload del JSON payload, a modo de ejemplo el mensaje se arma utilizando la clase String. esto se puede hacer con
-  // la biblioteca ArduinoJson (ver on message)
-  // el formato es {key"value, Key: value, .....}
+  // Preparar el payload, a modo de ejemplo el mensaje se arma utilizando la clase String. esto se puede hacer con
+  // la biblioteca ArduinoJson
+  // el formato del mensaje es {key"value, Key: value, .....}
   // en este caso seria {"temperature:"valor, "humidity:"valor}
   //
   String payload = "{";
@@ -147,7 +142,7 @@ void getAndSendData()
   payload.toCharArray( attributes, 100 );
   if (client.publish( telemetryTopic, attributes ) == true)
     Serial.println("publicado ok");
-  
+     
   Serial.println( attributes );
 
 }
@@ -167,44 +162,19 @@ void on_message(const char* topic, byte* payload, unsigned int length)
 {
     // Mostrar datos recibidos del servidor
   Serial.println("On message");
-  char json[length + 1];
-  strncpy (json, (char*)payload, length);
-  json[length] = '\0';
+  char message[length + 1];
+  strncpy ( message, (char*)payload, length);
+   message[length] = '\0';
 
   Serial.print("Topic: ");
   Serial.println(topic);
   Serial.print("Message: ");
-  Serial.println(json);
-
-  // Decode JSON request
-  // Notar que a modo de ejemplo este mensaje se arma utilizando la librería ArduinoJson en lugar de desarmar el string a "mano"
-  StaticJsonBuffer<200> jsonBuffer;
-  JsonObject& data = jsonBuffer.parseObject((char*)json);
-
-  if (!data.success())
-  {
-    Serial.println("parseObject() failed");
-    return;
-  }
-
-  // Obtener el nombre del método invocado, esto lo envia el switch de la puerta y el knob del motor que están en el dashboard
-  String methodName = String((const char*)data["method"]);
-  Serial.print("Nombre metodo:");
-  Serial.println(methodName);
+  Serial.println( message);
 
 }
 
 
- 
-//***************MODIFICAR PARA SU PROYECTO PARA PROCESAR UN COMANDO *********************
-
-
-
-
-
-
-
-//***************NO MODIFICAR *********************
+//***************NO MODIFICAR - Conexion con Wifi y ThingsBoard *********************
 /*
  * funcion para reconectarse al servidor de thingsboard y suscribirse a los topicos de RPC y Atributos
  */
