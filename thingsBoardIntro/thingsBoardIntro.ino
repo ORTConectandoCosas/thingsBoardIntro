@@ -15,13 +15,13 @@
 //***************MODIFICAR PARA SU PROYECTO *********************
 //  configuración datos wifi 
 // descomentar el define y poner los valores de su red y de su dispositivo
-//#define WIFI_AP "SSID RED"
-//#define WIFI_PASSWORD "PASSWORD RED"
+#define WIFI_AP "SSID RED"
+#define WIFI_PASSWORD "PASSWORD RED"
 
 
 //  configuración datos thingsboard
-//#define NODE_NAME "NOMBRE DISPOSITIVO"   //nombre que le pusieron al dispositivo cuando lo crearon
-//#define NODE_TOKEN "TOKEN DISPOSITIVO"   //Token que genera Thingboard para dispositivo cuando lo crearon
+#define NODE_NAME "NOMBRE DISPOSITIVO"   //nombre que le pusieron al dispositivo cuando lo crearon
+#define NODE_TOKEN "TOKEN DISPOSITIVO"   //Token que genera Thingboard para dispositivo cuando lo crearon
 
 
 //***************NO MODIFICAR *********************
