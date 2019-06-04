@@ -9,7 +9,7 @@
 // includes de bibliotecas para comunicación
 #include <PubSubClient.h>
 #include <ESP8266WiFi.h>
-#include <ArduinoJson.h>
+#include <ArduinoJson.h> // instalar versión 6 de esta biblioteca
 
 //***************MODIFICAR PARA SU PROYECTO *********************
 // includes de bibliotecas sensores, poner las que usen en este caso un DHT11 y un Servo
@@ -18,8 +18,8 @@
 //***************MODIFICAR PARA SU PROYECTO *********************
 //  configuración datos wifi 
 // descomentar el define y poner los valores de su red y de su dispositivo
-#define WIFI_AP "NOMBRE RED"
-#define WIFI_PASSWORD "PASSWORD RED"
+#define WIFI_AP "NOMBRE_RED"
+#define WIFI_PASSWORD "PASSWORD_RED"
 
 
 //  configuración datos thingsboard
@@ -80,6 +80,7 @@ void setup()
   dht.begin(); //inicaliza el DHT
 
   pinMode(ledPIN , OUTPUT);  //definir pin como salida
+  
   delay(10);
 }
 
@@ -177,12 +178,13 @@ void on_message(const char* topic, byte* payload, unsigned int length)
   Serial.print("Message: ");
   Serial.println( message);
 
-  // Veridifcar el topico por el cual llegó el mensaje
-  if (strcmp(topic, "v1/devices/me/attributes") ==0) { //es un cambio en atributos compoartidos
+  // Verificar el topico por el cual llegó el mensaje, puede ser un cambio de atributos o un request
+  if (strcmp(topic, "v1/devices/me/attributes") ==0) { //es un cambio en atributos compartidos
+    Serial.println("----> CAMBIO DE ATRIBUTOS");
     processAttributeRequestCommand(message);
   } else {
     // es un request
-    Serial.println("----> PREQUEST");
+    Serial.println("----> REQUEST");
     procesarRequest(message);
   }
 
@@ -192,11 +194,13 @@ void on_message(const char* topic, byte* payload, unsigned int length)
 void procesarRequest(char *message)
 {
 
-  // Decode JSON request with ArduinoJson 6
+  // Decode JSON request with ArduinoJson 6 https://arduinojson.org/v6/doc/deserialization/
   // Notar que a modo de ejemplo este mensaje se arma utilizando la librería ArduinoJson en lugar de desarmar el string a "mano"
+  
   const int capacity = JSON_OBJECT_SIZE(4);
   StaticJsonDocument<capacity> doc;
   DeserializationError err = deserializeJson(doc, message);
+  
   if (err) {
     Serial.print(F("deserializeJson() failed with code "));
     Serial.println(err.c_str());\
