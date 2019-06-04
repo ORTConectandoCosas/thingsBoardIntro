@@ -1,3 +1,5 @@
+
+
 /* Ejemplo para utilizar la comunicación con thingboards paso a paso con nodeMCU v2
  *  Gastón Mousqués
  *  Basado en varios ejemplos de la documentación de  https://thingsboard.io
@@ -7,6 +9,7 @@
 // includes de bibliotecas para comunicación
 #include <PubSubClient.h>
 #include <ESP8266WiFi.h>
+#include <ArduinoJson.h>
 
 //***************MODIFICAR PARA SU PROYECTO *********************
 // includes de bibliotecas sensores, poner las que usen en este caso un DHT11 y un Servo
@@ -15,13 +18,13 @@
 //***************MODIFICAR PARA SU PROYECTO *********************
 //  configuración datos wifi 
 // descomentar el define y poner los valores de su red y de su dispositivo
-#define WIFI_AP "SSID RED"
+#define WIFI_AP "NOMBRE RED"
 #define WIFI_PASSWORD "PASSWORD RED"
 
 
 //  configuración datos thingsboard
-#define NODE_NAME "NOMBRE DISPOSITIVO"   //nombre que le pusieron al dispositivo cuando lo crearon
-#define NODE_TOKEN "TOKEN DISPOSITIVO"   //Token que genera Thingboard para dispositivo cuando lo crearon
+#define NODE_NAME "Nombre dispositivo THB"   //nombre que le pusieron al dispositivo cuando lo crearon
+#define NODE_TOKEN "Token dispositivo THB"   //Token que genera Thingboard para dispositivo cuando lo crearon
 
 
 //***************NO MODIFICAR *********************
@@ -34,6 +37,7 @@ char thingsboardServer[] = "demo.thingsboard.io";
  */
 char telemetryTopic[] = "v1/devices/me/telemetry";
 char requestTopic[] = "v1/devices/me/rpc/request/+";  //RPC - El Servidor usa este topico para enviar rquests, cliente response
+char attributesTopic[] = "v1/devices/me/attributes";  //El Servidor usa este topico para enviar atributos
 
 // declarar cliente Wifi y PubSus
 WiFiClient wifiClient;
@@ -41,7 +45,7 @@ PubSubClient client(wifiClient);
 
 // declarar variables control loop (para no usar delay() en loop
 unsigned long lastSend;
-const int elapsedTime = 1000; // tiempo transcurrido entre envios al servidor
+int elapsedTime = 1000; // tiempo transcurrido entre envios al servidor
 
 
 //***************MODIFICAR PARA SU PROYECTO *********************
@@ -52,7 +56,7 @@ const int elapsedTime = 1000; // tiempo transcurrido entre envios al servidor
 // Declarar e Inicializar sensores.
 DHT dht(DHTPIN, DHTTYPE);
 
-
+const int ledPIN = D0;
 
 //
 //************************* Funciones Setup y loop *********************
@@ -74,6 +78,8 @@ void setup()
   // ******** AGREGAR INICIALZICION DE SENSORES PARA SU PROYECTO *********
   
   dht.begin(); //inicaliza el DHT
+
+  pinMode(ledPIN , OUTPUT);  //definir pin como salida
   delay(10);
 }
 
@@ -165,14 +171,70 @@ void on_message(const char* topic, byte* payload, unsigned int length)
   char message[length + 1];
   strncpy ( message, (char*)payload, length);
    message[length] = '\0';
-
+  
   Serial.print("Topic: ");
   Serial.println(topic);
   Serial.print("Message: ");
   Serial.println( message);
 
+  // Veridifcar el topico por el cual llegó el mensaje
+  if (strcmp(topic, "v1/devices/me/attributes") ==0) { //es un cambio en atributos compoartidos
+    processAttributeRequestCommand(message);
+  } else {
+    // es un request
+    Serial.println("----> PREQUEST");
+    procesarRequest(message);
+  }
+
 }
 
+//Metodo para procesar requests
+void procesarRequest(char *message)
+{
+
+  // Decode JSON request with ArduinoJson 6
+  // Notar que a modo de ejemplo este mensaje se arma utilizando la librería ArduinoJson en lugar de desarmar el string a "mano"
+  const int capacity = JSON_OBJECT_SIZE(4);
+  StaticJsonDocument<capacity> doc;
+  DeserializationError err = deserializeJson(doc, message);
+  if (err) {
+    Serial.print(F("deserializeJson() failed with code "));
+    Serial.println(err.c_str());\
+    return;
+  }
+
+  String method = doc["method"];
+  bool state = doc["params"];
+  if (state == true) {
+    digitalWrite(ledPIN , HIGH);   // poner el Pin en HIGH
+  } else {
+    digitalWrite(ledPIN , LOW);    // poner el Pin en LOW
+  }
+}
+
+// Metodo para procesar los cambios en atributos
+void processAttributeRequestCommand(char* message)
+{  // Decode JSON request with ArduinoJson 6 https://arduinojson.org/v6/doc/deserialization/
+  // Notar que a modo de ejemplo este mensaje se arma utilizando la librería ArduinoJson en lugar de desarmar el string a "mano"
+  const int capacity = JSON_OBJECT_SIZE(4);
+  StaticJsonDocument<capacity> doc;
+  DeserializationError err = deserializeJson(doc, message);
+  if (err) {
+    Serial.print(F("deserializeJson() failed with code "));
+    Serial.println(err.c_str());\
+    return;
+  }
+
+  JsonObject obj = doc.as<JsonObject>();
+  if (obj.containsKey("frecuenciaEnvioMs")) { //ver si es frecuencia
+    elapsedTime = doc["frecuenciaEnvioMs"];
+
+    Serial.print("valor frecuencia:");
+    Serial.println(elapsedTime);
+  }
+  
+ 
+}
 
 //***************NO MODIFICAR - Conexion con Wifi y ThingsBoard *********************
 /*
@@ -192,7 +254,8 @@ void reconnect() {
       
       // Suscribir al Topico de request
       client.subscribe(requestTopic); 
-      
+      client.subscribe(attributesTopic); 
+            
     } else {
       Serial.print( "[FAILED] [ rc = " );
       Serial.print( client.state() );
